@@ -1,0 +1,27 @@
+name: Create RelicDex TinyURL
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/shorten-relicdex.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  shorten:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create and verify TinyURL
+        shell: bash
+        run: |
+          set -euo pipefail
+          destination="https://jamesthoward2112-tech.github.io/RelicDex/"
+          encoded="https%3A%2F%2Fjamesthoward2112-tech.github.io%2FRelicDex%2F"
+          short="$(curl -fsSL --retry 2 --max-time 25 "https://tinyurl.com/api-create.php?url=${encoded}")"
+          if [[ ! "$short" =~ ^https://tinyurl\.com/[A-Za-z0-9_-]+$ ]]; then
+            echo "::error::TinyURL did not return a valid short link: $short"
+            exit 1
+          fi
+          printf 'RelicDex short link: %s\n' "$short"
+          printf 'RelicDex destination: %s\n' "$destination"
+          printf '## RelicDex TinyURL\n\n%s\n\nDestination: %s\n' "$short" "$destination" >> "$GITHUB_STEP_SUMMARY"
