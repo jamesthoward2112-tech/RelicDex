@@ -1,0 +1,67 @@
+name: Publish RelicDex Beta 3
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: relicdex-pages
+  cancel-in-progress: true
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+    steps:
+      - name: Check out RelicDex repository
+        uses: actions/checkout@v4
+      - name: Restore approved Beta 3 website
+        run: |
+          echo "6443d74c1c73de2d753cc7bb1387702b0c76bc880d91e365f5cb5ac54311ce1b  archive/relicdex-beta3.zip" | sha256sum -c -
+          mkdir -p relicdex-src
+          unzip -q archive/relicdex-beta3.zip -d relicdex-src
+      - name: Check out pinned vanilla Pokesprite fork
+        uses: actions/checkout@v4
+        with:
+          repository: jamesthoward2112-tech/pokesprite
+          ref: c5aaa610ff2acdf7fd8e2dccd181bca8be9fcb3e
+          path: _donors/pokesprite
+          sparse-checkout: pokemon-gen8
+      - name: Check out pinned Relic Legacy sprite donor
+        uses: actions/checkout@v4
+        with:
+          repository: jamesthoward2112-tech/Pokemon-Relic-Legacy
+          ref: 6ee9b984521ac6f2beaf995f771a726379e55c88
+          path: _donors/prl
+          sparse-checkout: graphics/pokemon
+      - name: Bundle vanilla and approved custom sprites and validate assets
+        run: |
+          python3 relicdex-src/scripts/bundle_assets.py --pokesprite _donors/pokesprite --prl _donors/prl --out _site
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('_site')
+          mons=json.loads((p/'data/pokemon.json').read_text())
+          assert len(mons)==444, f'Expected 444 Pokémon, found {len(mons)}'
+          sprites=[v for m in mons for v in m.get('sprite',{}).values() if v]
+          assert all(not v.startswith(('http:','https:')) for v in sprites), 'Remote sprite URLs remain'
+          assert all((p/v).is_file() for v in sprites), 'Referenced sprites missing'
+          print(f'Validated {len(mons)} Pokémon, {len(sprites)} local sprite references')
+          PY
+      - name: Attempt one-time GitHub Pages activation
+        run: |
+          gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow || echo "Pages may need enabling once under Settings > Pages > Source: GitHub Actions."
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+      - name: Upload website
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: _site
+      - name: Publish website
+        uses: actions/deploy-pages@v4
+        id: deployment
