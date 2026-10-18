@@ -1,4 +1,4 @@
-name: Publish RelicDex — 18 Oct PRU sync
+name: Publish RelicDex — canonical sprite and evolution repair
 on:
   push:
     branches: [main]
@@ -37,6 +37,15 @@ jobs:
           ref: 6ee9b984521ac6f2beaf995f771a726379e55c88
           path: _donors/prl
           sparse-checkout: graphics/pokemon
+      - name: Check out verified PRU sprite and evolution source
+        uses: actions/checkout@v4
+        with:
+          repository: jamesthoward2112-tech/Pokemon-Johto-Relics
+          ref: 2f7122d692f676ac14665e43f7d0f5477d7ad59e
+          path: _donors/pru
+          sparse-checkout: |
+            graphics/pokemon/noxichu
+            src/data/pokemon/species_info
       - name: Bundle vanilla and approved custom sprites and validate assets
         run: |
           python3 relicdex-src/scripts/bundle_assets.py --pokesprite _donors/pokesprite --prl _donors/prl --out _site
@@ -66,6 +75,29 @@ jobs:
           assert all((site / v).is_file() for v in paths)
           assert (site / 'updates.html').is_file()
           print(f'Post-update: {len(mons)} entries, {len(paths)} local sprite links, PRU update page available')
+          PY
+      - name: Repair all 444 evolution links and normalize sprite previews
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet Pillow==11.3.0
+          python3 scripts/repair_relicdex.py --site _site --pru _donors/pru
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          site=Path('_site')
+          mons=json.loads((site/'data/pokemon.json').read_text())
+          assert len(mons)==444
+          byname={m['name']:m for m in mons}
+          mightyena=byname['Mightyena']
+          skull=byname['Skulberus']
+          assert any(r.get('targetConstant')=='SPECIES_SKULBERUS' and r.get('method')=='Ancient Stone' and r.get('requirement')=='Level 45+' for r in mightyena['evolutions'])
+          assert any(r['source']=='Mightyena' for r in skull['evolvesFrom'])
+          assert 'verified PRU source' in byname['Noxichu']['spriteProvenance']
+          for m in mons:
+              for k in ('front','shiny','back'):
+                  p=m['sprite'].get(k)
+                  if p: assert (site/p).is_file(), (m['name'],k,p)
+          assert (site/'data/sprite_evolution_audit.json').exists()
+          print('Verified 444 entries, source-matched evolutions, approved art and local normalized sprite previews')
           PY
       - name: Attempt one-time GitHub Pages activation
         run: |
