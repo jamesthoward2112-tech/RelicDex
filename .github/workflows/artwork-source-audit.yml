@@ -1,0 +1,81 @@
+name: RelicDex approved artwork source audit
+on:
+  push:
+    paths:
+      - .github/workflows/artwork-source-audit.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out RelicDex
+        uses: actions/checkout@v4
+      - name: Checkout pinned Radical Red Pokédex graphics
+        uses: actions/checkout@v4
+        with:
+          repository: JwowSquared/Radical-Red-Pokedex
+          ref: 488a0918194d567b5f7b02c396118d51fb9c81ce
+          path: _source/rr
+          sparse-checkout: |
+            graphics/species/front
+            graphics/species/back
+            graphics/species/front shiny
+            graphics/species/back shiny
+      - name: Checkout locked PRL graphics
+        uses: actions/checkout@v4
+        with:
+          repository: jamesthoward2112-tech/Pokemon-Relic-Legacy
+          ref: 6ee9b984521ac6f2beaf995f771a726379e55c88
+          path: _source/prl
+          sparse-checkout: graphics/pokemon
+      - name: Create visual candidate review and source manifest
+        run: |
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          from PIL import Image,ImageDraw
+          out=Path('artwork-review');out.mkdir(exist_ok=True)
+          rr=Path('_source/rr/graphics/species')
+          prl=Path('_source/prl/graphics/pokemon')
+          candidate=[]
+          for species,index in [('Noibat Sevii',866),('Noivern Sevii',867)]:
+            for folder in ['front','back','front shiny','back shiny']:
+              path=rr/folder/f'{index}.png'
+              candidate.append((species+' · '+folder,path))
+          for species in ['articuno','zapdos','moltres','raikou','entei','suicune','lugia','ho_oh','ho_oh_relic','celebi','rayquaza','groudon','kyogre','latias','latios','mewtwo']:
+            for fname in ['anim_front.png','front.png']:
+              path=prl/species/fname
+              if path.exists():
+                candidate.append((species+' · '+fname,path))
+                break
+          records=[]
+          width=800;col_width=200;row_height=190
+          out_image=Image.new('RGB',(width,((len(candidate)+3)//4)*row_height),'#172434')
+          draw=ImageDraw.Draw(out_image)
+          for i,(name,path) in enumerate(candidate):
+            rec={'name':name,'source':str(path),'exists':path.exists()}
+            x=(i%4)*col_width;y=(i//4)*row_height
+            draw.text((x+7,y+8),name[:26],fill='white')
+            if path.exists():
+              img=Image.open(path).convert('RGBA')
+              rec['size']=img.size
+              rec['colors']=len(img.getcolors(maxcolors=1000000) or [])
+              if img.height>=2*img.width and 'anim_front' in path.name:img=img.crop((0,0,img.width,img.width))
+              img.thumbnail((155,145),Image.Resampling.NEAREST)
+              out_image.paste(img,(x+(200-img.width)//2,y+30+(150-img.height)//2),img)
+              draw.text((x+7,y+170),str(rec['size']),fill='#aed5cf')
+            else:
+              draw.text((x+10,y+80),'MISSING',fill='#ff8181')
+            records.append(rec)
+          out_image.save(out/'source-contact-sheet.png')
+          (out/'source-manifest.json').write_text(json.dumps(records,indent=2))
+          for r in records:print(r)
+          assert (rr/'front/866.png').exists() and (rr/'front/867.png').exists()
+          PY
+      - name: Upload inspection images and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: RelicDex-Artwork-Source-Audit
+          path: artwork-review
