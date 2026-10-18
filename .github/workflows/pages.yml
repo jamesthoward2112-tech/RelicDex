@@ -1,4 +1,4 @@
-name: Publish RelicDex — Radical Red Sevii and approved legends
+name: Publish RelicDex — complete PJR legendary sprite integration
 on:
   push:
     branches: [main]
@@ -37,6 +37,22 @@ jobs:
           ref: 6ee9b984521ac6f2beaf995f771a726379e55c88
           path: _donors/prl
           sparse-checkout: graphics/pokemon
+      - name: Check out source-locked PJR Hoenn legendary art
+        uses: actions/checkout@v4
+        with:
+          repository: jamesthoward2112-tech/Pokemon-Johto-Relics
+          ref: 9e9ec181961efbbdba88055876dfa9b18fd0ae64
+          path: _donors/pjr
+          sparse-checkout: |
+            graphics/pokemon/regirock
+            graphics/pokemon/regice
+            graphics/pokemon/registeel
+            graphics/pokemon/latias
+            graphics/pokemon/latios
+            graphics/pokemon/kyogre
+            graphics/pokemon/groudon
+            graphics/pokemon/rayquaza
+            graphics/pokemon/jirachi
       - name: Check out pinned Radical Red Seviian battle art
         uses: actions/checkout@v4
         with:
@@ -110,6 +126,26 @@ jobs:
           for name in ('Articuno','Zapdos','Moltres','Mewtwo','Deoxys'):
               assert x[name]['sprite'].get('front')
           print('Verified original Radical Red front/back/shiny artwork and source-pinned Relic legend sets')
+          PY
+      - name: Import remaining PJR Hoenn legendary sprite sets
+        run: |
+          python3 scripts/port_pjr_hoenn_legends.py --site _site --pjr _donors/pjr
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          p=Path('_site')
+          mons=json.loads((p/'data/pokemon.json').read_text())
+          assert len(mons)==444
+          byname={m['name']:m for m in mons}
+          wanted=('Regirock','Regice','Registeel','Latias','Latios','Kyogre','Groudon','Rayquaza','Jirachi')
+          for name in wanted:
+              sprite=byname[name]['sprite']
+              assert 'Verified original PJR' in byname[name]['spriteProvenance']
+              for kind in ('front','back','shiny','icon'):
+                  assert (p/sprite[kind]).is_file(), (name,kind)
+          assert 'PokéSprite' in byname['Mew']['spriteProvenance']
+          assert (p/'data/pjr_legendary_art_audit.json').is_file()
+          print('Verified all 9 original PJR species fronts, backs, shinies and icons; Mew unchanged.')
           PY
       - name: Repair all 444 evolution links and normalize sprite previews
         run: |
