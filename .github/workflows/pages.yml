@@ -1,4 +1,4 @@
-name: Publish RelicDex — canonical sprite and evolution repair
+name: Publish RelicDex — Radical Red Sevii and approved legends
 on:
   push:
     branches: [main]
@@ -37,6 +37,17 @@ jobs:
           ref: 6ee9b984521ac6f2beaf995f771a726379e55c88
           path: _donors/prl
           sparse-checkout: graphics/pokemon
+      - name: Check out pinned Radical Red Seviian battle art
+        uses: actions/checkout@v4
+        with:
+          repository: JwowSquared/Radical-Red-Pokedex
+          ref: 488a0918194d567b5f7b02c396118d51fb9c81ce
+          path: _donors/rr
+          sparse-checkout: |
+            graphics/species/front
+            graphics/species/back
+            graphics/species/front shiny
+            graphics/species/back shiny
       - name: Check out verified PRU sprite and evolution source
         uses: actions/checkout@v4
         with:
@@ -75,6 +86,30 @@ jobs:
           assert all((site / v).is_file() for v in paths)
           assert (site / 'updates.html').is_file()
           print(f'Post-update: {len(mons)} entries, {len(paths)} local sprite links, PRU update page available')
+          PY
+      - name: Import verified Radical Red forms and protected PRL legendary sprites
+        run: |
+          python3 -m pip install --disable-pip-version-check --quiet Pillow==11.3.0
+          python3 scripts/port_seviian_and_approved_legends.py --site _site --rr _donors/rr --prl _donors/prl
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          root=Path('_site')
+          mons=json.loads((root/'data/pokemon.json').read_text())
+          assert len(mons)==444
+          x={m['name']:m for m in mons}
+          for name in ('Noibat (Sevii)','Noivern (Sevii)'):
+              m=x[name]
+              assert m['types']==['Rock','Ghost']
+              assert 'Radical Red' in m['spriteProvenance']
+              for k in ('front','back','shiny'):assert (root/m['sprite'][k]).is_file()
+          for name in ('Raikou','Entei','Suicune','Lugia','Ho-Oh','Celebi'):
+              m=x[name]
+              assert 'Protected PRL/PJR' in m['spriteProvenance']
+              for k in ('front','back','shiny'):assert (root/m['sprite'][k]).is_file()
+          for name in ('Articuno','Zapdos','Moltres','Mewtwo','Deoxys'):
+              assert x[name]['sprite'].get('front')
+          print('Verified original Radical Red front/back/shiny artwork and source-pinned Relic legend sets')
           PY
       - name: Repair all 444 evolution links and normalize sprite previews
         run: |
