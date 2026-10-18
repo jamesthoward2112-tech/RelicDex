@@ -1,4 +1,4 @@
-name: Publish RelicDex Beta 3
+name: Publish RelicDex — 18 Oct PRU sync
 on:
   push:
     branches: [main]
@@ -50,6 +50,22 @@ jobs:
           assert all(not v.startswith(('http:','https:')) for v in sprites), 'Remote sprite URLs remain'
           assert all((p/v).is_file() for v in sprites), 'Referenced sprites missing'
           print(f'Validated {len(mons)} Pokémon, {len(sprites)} local sprite references')
+          PY
+      - name: Apply 18 October PRU updates to RelicDex
+        run: |
+          python3 scripts/apply_pru_updates.py --site _site
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          site = Path('_site')
+          mons = json.loads((site / 'data/pokemon.json').read_text())
+          assert len(mons) == 444
+          assert len([m for m in mons if m.get('name') == 'Valkiri']) == 1
+          paths = [v for m in mons for v in m.get('sprite', {}).values() if isinstance(v, str) and v]
+          assert all(not v.startswith(('http:', 'https:')) for v in paths)
+          assert all((site / v).is_file() for v in paths)
+          assert (site / 'updates.html').is_file()
+          print(f'Post-update: {len(mons)} entries, {len(paths)} local sprite links, PRU update page available')
           PY
       - name: Attempt one-time GitHub Pages activation
         run: |
