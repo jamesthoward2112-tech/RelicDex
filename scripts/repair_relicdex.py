@@ -119,7 +119,7 @@ def add_incoming_evo_display(site):
     if original not in text and "evolvesFrom?.length" not in text:
         raise ValueError("RelicDex JS evolution rendering changed; refusing a blind patch")
     if "evolvesFrom?.length" not in text:
-        extra="""if(m.evolvesFrom?.length){for(const x of m.evolvesFrom)evo.append(E('p','muted',\`Evolves from \${x.source} (#\${String(x.sourceNumber).padStart(3,'0')}) — \${x.method}: \${x.requirement}\`))} """
+        extra="""if(m.evolvesFrom?.length){for(const x of m.evolvesFrom)evo.append(E('p','muted',`Evolves from ${x.source} (#${String(x.sourceNumber).padStart(3,'0')}) — ${x.method}: ${x.requirement}`))} """
         text=text.replace(original,extra+original,1)
         script.write_text(text,encoding="utf-8")
 
