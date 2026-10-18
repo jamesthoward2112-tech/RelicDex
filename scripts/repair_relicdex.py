@@ -155,7 +155,7 @@ def main():
     # A new service worker cache key ensures users do not keep seeing old art.
     sw=site/"sw.js"
     old_sw=sw.read_text(encoding="utf-8")
-    new_sw=re.sub(r"const KEY='[^']+'", "const KEY='relicdex-pru-20261018-v6-sevii-legends'", old_sw, count=1)
+    new_sw=re.sub(r"const KEY='[^']+'", "const KEY='relicdex-pru-20261018-v7-pjr-legends'", old_sw, count=1)
     if old_sw == new_sw:
         raise ValueError("Unable to version the RelicDex service worker")
     sw.write_text(new_sw,encoding="utf-8")
