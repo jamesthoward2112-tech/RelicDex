@@ -151,6 +151,14 @@ def main():
 
     changes=update_evolutions(mons,parse_verified_stone_evolutions(pru))
     add_incoming_evo_display(site)
+    # Force the installable/offline site to replace the old Beta 3 shell cache.
+    # A new service worker cache key ensures users do not keep seeing old art.
+    sw=site/"sw.js"
+    old_sw=sw.read_text(encoding="utf-8")
+    new_sw=re.sub(r"const KEY='[^']+'", "const KEY='relicdex-pru-20261018-v5'", old_sw, count=1)
+    if old_sw == new_sw:
+        raise ValueError("Unable to version the RelicDex service worker")
+    sw.write_text(new_sw,encoding="utf-8")
     processed=0
     for mon in mons:
         sprite=mon.get("sprite",{})
