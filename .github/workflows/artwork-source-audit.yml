@@ -32,6 +32,7 @@ jobs:
           sparse-checkout: graphics/pokemon
       - name: Create visual candidate review and source manifest
         run: |
+          python3 -m pip install --disable-pip-version-check --quiet Pillow==11.3.0
           python3 - <<'PY'
           import json
           from pathlib import Path
