@@ -72,6 +72,7 @@ jobs:
           path: _donors/pru
           sparse-checkout: |
             graphics/pokemon/noxichu
+            assets/pru_title
             src/data/pokemon/species_info
       - name: Bundle vanilla and approved custom sprites and validate assets
         run: |
@@ -170,6 +171,12 @@ jobs:
           assert (site/'data/sprite_evolution_audit.json').exists()
           print('Verified 444 entries, source-matched evolutions, approved art and local normalized sprite previews')
           PY
+      - name: Publish PRU game website and approved title artwork
+        run: |
+          python3 scripts/publish_pru_site.py --site _site --pru _donors/pru
+          test -f _site/pru/index.html
+          test -f _site/pru/about/index.html
+          test -f _site/pru/media/title-screen.png
       - name: Attempt one-time GitHub Pages activation
         run: |
           gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" -f build_type=workflow || echo "Pages may need enabling once under Settings > Pages > Source: GitHub Actions."
